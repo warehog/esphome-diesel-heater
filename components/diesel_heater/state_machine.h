@@ -45,6 +45,11 @@ class StateMachine {
   void set_frame_start_time(uint32_t t) { time_frame_prefix_started_ = t; }
   uint32_t frame_start_time() const { return time_frame_prefix_started_; }
 
+  bool is_valid_start(uint32_t now) const {
+    uint32_t duration = now - time_frame_prefix_started_;
+    return duration > 29000 && duration < 31000;
+  }
+
   void set_bits_to_read(uint8_t bits) { bits_to_read_ = bits; }
   uint8_t bits_to_read() const { return bits_to_read_; }
 
