@@ -74,6 +74,7 @@ void IRAM_ATTR DHProtocol::on_pin_interrupt() {
       if (sm_.is_valid_start(now) == false) {
         sm_.set_state(ReadState::F_REQ_WAIT_F_EDGE);
         platform_->attach_pin_interrupt(this->data_pin_, false, on_pin_isr);
+        ESP_LOGE("F_REQ_WAIT_R_EDGE", "Invalid start detected");
         break;
       }
         
@@ -95,6 +96,7 @@ void IRAM_ATTR DHProtocol::on_pin_interrupt() {
         if (sm_.is_valid_start(now) == false) {
           sm_.reset(ReadState::F_REQ_WAIT_F_EDGE);
           platform_->attach_pin_interrupt(this->data_pin_, false, on_pin_isr);
+          ESP_LOGE("F_RESP_WAIT_R_EDGE", "Invalid start detected");
           break;
         }
         platform_->detach_pin_interrupt(this->data_pin_);
