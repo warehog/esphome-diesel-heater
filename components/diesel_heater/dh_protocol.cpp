@@ -70,19 +70,17 @@ void IRAM_ATTR DHProtocol::on_pin_interrupt() {
 
     case ReadState::F_REQ_WAIT_R_EDGE: {
       platform_->detach_pin_interrupt(this->data_pin_);
-      // valid_start = sm_.on_rising_edge_detected(now);
-      uint32_t duration = now - sm_.frame_start_time();
-      bool valid_start = duration > 29000 && duration < 31000;
 
-      if (valid_start) {
-        platform_->start_timer(TIME_PERIOD_4040us / 2, on_timer_isr);
-        sm_.set_state(ReadState::F_REQ_READ);
-        sm_.set_bits_to_read(23);
-        sm_.set_bit_index(0);
-      } else {
+      if (sm_.is_valid_start(now) == false) {
         sm_.set_state(ReadState::F_REQ_WAIT_F_EDGE);
         platform_->attach_pin_interrupt(this->data_pin_, false, on_pin_isr);
+        break;
       }
+        
+      platform_->start_timer(TIME_PERIOD_4040us / 2, on_timer_isr);
+      sm_.set_state(ReadState::F_REQ_READ);
+      sm_.set_bits_to_read(23);
+      sm_.set_bit_index(0);
       break;
 
       case ReadState::F_RESP_WAIT_F_EDGE:
@@ -94,8 +92,11 @@ void IRAM_ATTR DHProtocol::on_pin_interrupt() {
         break;
 
       case ReadState::F_RESP_WAIT_R_EDGE:
-        uint32_t duration = now - sm_.frame_start_time();
-        bool valid_start = duration > 29000 && duration < 31000;
+        if (sm_.is_valid_start(now) == false) {
+          sm_.reset(ReadState::F_REQ_WAIT_F_EDGE);
+          platform_->attach_pin_interrupt(this->data_pin_, false, on_pin_isr);
+          break;
+        }
         platform_->detach_pin_interrupt(this->data_pin_);
         platform_->start_timer(TIME_PERIOD_4040us / 2, on_timer_isr);
         sm_.set_state(ReadState::F_RESP_READ);
