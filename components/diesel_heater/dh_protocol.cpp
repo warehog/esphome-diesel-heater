@@ -124,7 +124,6 @@ void IRAM_ATTR DHProtocol::on_pin_interrupt() {
         platform_->start_timer(TIME_PERIOD_4040us, on_timer_isr);
 
         if (this->request_received_callback_ != nullptr) {
-          // ESP_LOGD("", "Request received: 0x%02X", this->decode_request(this->current_request_));
           this->request_received_callback_(this->decode_request(this->current_request_));
         }
         break;
@@ -140,7 +139,20 @@ void IRAM_ATTR DHProtocol::on_timer_interrupt() {
     case ReadState::F_REQ_READ: {
       uint8_t bit = (uint8_t) digitalRead(this->data_pin_->get_pin());
       current_request_[sm_.current_bit_index()] = bit;
+
+      if ((sm_.current_bit_index() + 1) % 3 == 0) {
+        uint16_t start_index = sm_.current_bit_index() - 2;
+        if (current_request_[start_index] != 1 || current_request_[start_index + 2] != 0) {
+          ESP_LOGW("F_REQ_READ", "Invalid subframe at bit indices [%d..%d]: "
+                   "subf[0] should be 1, subf[2] should be 0.",
+                   start_index, start_index + 2);
+          sm_.reset(ReadState::F_REQ_WAIT_F_EDGE);
+    }
+  }
+  
       sm_.increment_bit_index();
+
+
 
       if (sm_.current_bit_index() > sm_.bits_to_read()) {
         sm_.set_state(ReadState::F_REQ_WAIT_END);
