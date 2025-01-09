@@ -121,6 +121,7 @@ inline void parse_response(uint16_t response_data, SystemState &state) {
       break;
     default:
       // Unknown response type
+      ESP_LOGD("DieselHeater", "Unknown response type: " U16_TO_BINARY_PATTERN, U16_TO_BINARY(response_data));
       break;
   }
 }

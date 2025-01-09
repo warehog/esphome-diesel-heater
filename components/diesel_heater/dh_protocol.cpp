@@ -74,9 +74,10 @@ void IRAM_ATTR DHProtocol::on_pin_interrupt() {
       if (sm_.is_valid_start(now) == false) {
         sm_.set_state(ReadState::F_REQ_WAIT_F_EDGE);
         platform_->attach_pin_interrupt(this->data_pin_, false, on_pin_isr);
+        ESP_LOGW("DHProtocol", "Invalid start detected: %d", now - sm_.frame_start_time());
         break;
       }
-        
+
       platform_->start_timer(TIME_PERIOD_4040us / 2, on_timer_isr);
       sm_.set_state(ReadState::F_REQ_READ);
       sm_.set_bits_to_read(23);
