@@ -70,7 +70,10 @@ void IRAM_ATTR DHProtocol::on_pin_interrupt() {
 
     case ReadState::F_REQ_WAIT_R_EDGE: {
       platform_->detach_pin_interrupt(this->data_pin_);
-      valid_start = sm_.on_rising_edge_detected(now);
+      // valid_start = sm_.on_rising_edge_detected(now);
+      uint32_t duration = now - sm_.frame_start_time();
+      bool valid_start = duration > 29000 && duration < 31000;
+
       if (valid_start) {
         platform_->start_timer(TIME_PERIOD_4040us / 2, on_timer_isr);
         sm_.set_state(ReadState::F_REQ_READ);
@@ -84,12 +87,15 @@ void IRAM_ATTR DHProtocol::on_pin_interrupt() {
 
       case ReadState::F_RESP_WAIT_F_EDGE:
         platform_->detach_pin_interrupt(this->data_pin_);
+        sm_.set_frame_start_time(now);
         // platform_->stop_timer();
         sm_.set_state(ReadState::F_RESP_WAIT_R_EDGE);
         platform_->attach_pin_interrupt(this->data_pin_, true, on_pin_isr);
         break;
 
       case ReadState::F_RESP_WAIT_R_EDGE:
+        uint32_t duration = now - sm_.frame_start_time();
+        bool valid_start = duration > 29000 && duration < 31000;
         platform_->detach_pin_interrupt(this->data_pin_);
         platform_->start_timer(TIME_PERIOD_4040us / 2, on_timer_isr);
         sm_.set_state(ReadState::F_RESP_READ);
@@ -124,6 +130,7 @@ void IRAM_ATTR DHProtocol::on_pin_interrupt() {
         platform_->start_timer(TIME_PERIOD_4040us, on_timer_isr);
 
         if (this->request_received_callback_ != nullptr) {
+          // ESP_LOGD("", "Request received: 0x%02X", this->decode_request(this->current_request_));
           this->request_received_callback_(this->decode_request(this->current_request_));
         }
         break;
@@ -141,32 +148,18 @@ void IRAM_ATTR DHProtocol::on_timer_interrupt() {
       current_request_[sm_.current_bit_index()] = bit;
       sm_.increment_bit_index();
 
-
-
-      // if (sm_.current_bit_index() > sm_.bits_to_read()) {
-      //   sm_.set_state(ReadState::F_REQ_WAIT_END);
-      //   platform_->stop_timer();
-      //   platform_->attach_pin_interrupt(this->data_pin_, true, on_pin_isr);
-      // } else {
-      //   platform_->start_timer(TIME_PERIOD_4040us, on_timer_isr);
-      // }
-      // break;
+      if (sm_.current_bit_index() > sm_.bits_to_read()) {
+        sm_.set_state(ReadState::F_REQ_WAIT_END);
+        platform_->stop_timer();
+        platform_->attach_pin_interrupt(this->data_pin_, true, on_pin_isr);
+      } else {
+        platform_->start_timer(TIME_PERIOD_4040us, on_timer_isr);
+      }
+      break;
     }
 
     case ReadState::F_RESP_READ:
       current_response_[sm_.current_bit_index()] = (uint8_t) digitalRead(this->data_pin_->get_pin());
-
-      if ((sm_.current_bit_index() + 1) % 3 == 0) {
-        uint16_t start_index = sm_.current_bit_index() - 2;
-        if (current_response_[start_index] != 1 || current_response_[start_index + 2] != 0) {
-          // ESP_LOGW("F_RESP_READ", "Invalid subframe at bit indices [%d..%d]: "
-          //          "subf[0] should be 1, subf[2] should be 0.",
-          //          start_index, start_index + 2);
-          sm_.reset(ReadState::F_REQ_WAIT_F_EDGE);
-          platform_->attach_pin_interrupt(this->data_pin_, false, on_pin_isr);
-        }
-      }
-
       sm_.increment_bit_index();
 
       if (sm_.current_bit_index() > sm_.bits_to_read()) {
