@@ -143,14 +143,14 @@ void IRAM_ATTR DHProtocol::on_timer_interrupt() {
 
 
 
-      if (sm_.current_bit_index() > sm_.bits_to_read()) {
-        sm_.set_state(ReadState::F_REQ_WAIT_END);
-        platform_->stop_timer();
-        platform_->attach_pin_interrupt(this->data_pin_, true, on_pin_isr);
-      } else {
-        platform_->start_timer(TIME_PERIOD_4040us, on_timer_isr);
-      }
-      break;
+      // if (sm_.current_bit_index() > sm_.bits_to_read()) {
+      //   sm_.set_state(ReadState::F_REQ_WAIT_END);
+      //   platform_->stop_timer();
+      //   platform_->attach_pin_interrupt(this->data_pin_, true, on_pin_isr);
+      // } else {
+      //   platform_->start_timer(TIME_PERIOD_4040us, on_timer_isr);
+      // }
+      // break;
     }
 
     case ReadState::F_RESP_READ:
